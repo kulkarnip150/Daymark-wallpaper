@@ -1,0 +1,75 @@
+name: Windows build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Test and publish Windows x64
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "1"
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install .NET 10 SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Run Release tests
+        run: >-
+          dotnet test Daymark-wallpaper.Tests/Daymark-wallpaper.Tests.csproj
+          --configuration Release
+          -p:RestoreSources=https://api.nuget.org/v3/index.json
+          --logger "trx;LogFileName=tests.trx"
+          --results-directory artifacts/test-results
+
+      - name: Publish self-contained Windows executable
+        run: >-
+          dotnet publish Daymark-wallpaper/Daymark-wallpaper.csproj
+          --configuration Release
+          --runtime win-x64
+          --self-contained true
+          -p:RestoreSources=https://api.nuget.org/v3/index.json
+          --output artifacts/win-x64
+
+      - name: Verify published executable
+        run: |
+          $executable = Get-Item artifacts/win-x64/Daymark-wallpaper.exe -ErrorAction Stop
+          if ($executable.Length -eq 0) {
+            throw "Published executable is empty."
+          }
+          Write-Host "Published $($executable.Name): $($executable.Length) bytes"
+
+      - name: Upload Windows executable
+        uses: actions/upload-artifact@v4
+        with:
+          name: Daymark-wallpaper-win-x64
+          path: artifacts/win-x64/Daymark-wallpaper.exe
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Windows-test-results
+          path: artifacts/test-results/*.trx
+          if-no-files-found: warn
+          retention-days: 14
