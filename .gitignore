@@ -1,0 +1,23 @@
+# .NET build output
+**/bin/
+**/obj/
+artifacts/
+TestResults/
+**/TestResults/
+*.trx
+*.coverage
+*.coveragexml
+
+# Local IDE settings
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.sln.docstates
+
+# Local logs and operating system files
+*.log
+.DS_Store
+Thumbs.db
+Desktop.ini
